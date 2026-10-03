@@ -78,7 +78,7 @@ export default function Home() {
 
           <h1 className="text-2xl font-bold tracking-tight">마이링크 (MyLink)</h1>
           <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 max-w-xs">
-            나만의 소중한 링크들을 한 페이지에 깔끔하게 모아보세요.
+            안정적인 백엔드 시스템과 서버 아키텍처를 구축하는 개발자입니다.
           </p>
         </div>
 

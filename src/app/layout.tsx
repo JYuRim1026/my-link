@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "마이링크 | MyLink",
-  description: "나만의 소중한 링크들을 한곳에 모아주는 마이링크(MyLink)",
+  description: "안정적인 백엔드 시스템과 서버 아키텍처를 구축하는 개발자의 마이링크(MyLink)",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
