@@ -4,8 +4,8 @@ export interface LinkItem {
   description: string;
   url: string;
   badge: string;
-  iconName: string;
-  color: string;
+  iconName?: string;
+  color?: string;
   enabled: boolean;
   clicks: number;
 }

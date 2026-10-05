@@ -46,7 +46,7 @@ export function LinkCardItem({ link, onLinkClick }: LinkCardItemProps) {
     >
       <div className="flex items-center gap-3 min-w-0 flex-1">
         <div className="p-2 rounded-xs bg-[#21242e] text-[#ecab37] border border-black group-hover:bg-[#e60012] group-hover:text-white transition-colors shrink-0">
-          {renderIcon(link.iconName)}
+          {renderIcon(link.iconName || "ExternalLink")}
         </div>
 
         <div className="min-w-0 flex-1">

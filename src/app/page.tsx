@@ -1,15 +1,11 @@
 "use client";
 
-import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { MOCK_LINKS, LinkItem } from "@/data/mockLinks";
 import { ProfileHeader } from "@/components/profile/ProfileHeader";
 import { ProfileHero } from "@/components/profile/ProfileHero";
 import { LinkList } from "@/components/profile/LinkList";
 
 export default function LinkListPage() {
-  const [links, setLinks] = useState<LinkItem[]>(MOCK_LINKS);
-
   const profileUser = {
     name: "마이링크 (MyLink)",
     role: "Backend & Server Engineer",
@@ -17,17 +13,6 @@ export default function LinkListPage() {
     avatarUrl: "/avatar.jpg",
     email: "contact@example.com",
     statusText: "ONLINE",
-  };
-
-  const handleLinkClick = (id: string, url: string) => {
-    setLinks((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, clicks: item.clicks + 1 } : item
-      )
-    );
-    if (url && url !== "#") {
-      window.open(url, "_blank", "noopener,noreferrer");
-    }
   };
 
   return (
@@ -54,8 +39,8 @@ export default function LinkListPage() {
             email={profileUser.email}
           />
 
-          {/* Reusable Link List */}
-          <LinkList links={links} onLinkClick={handleLinkClick} />
+          {/* Reusable Link List with AddLinkDialog & Zustand Store */}
+          <LinkList />
 
         </div>
 
