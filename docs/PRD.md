@@ -11,7 +11,9 @@
 - 개인 크리에이터, 개발자 및 일반 사용자가 자신의 소셜 미디어, 기술 블로그, 포트폴리오, 프로젝트 링크를 한곳에 깔끔하고 감각적으로 모아 제공하는 **멀티 링크 & 바이오 프로필 서비스** (Linktree 클론).
 
 ### 1.3 아키텍처 및 구현 방식
-- **프론트엔드**: Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4
+- **프론트엔드**: Next.js 16 (App Router), React 19, TypeScript
+- **스타일링 체계**: **100% Tailwind CSS v4 통일 (CSS Modules 금지)**
+- **디자인 시스템**: **shadcn/ui 기반 마리오 / 닌텐도 2001 커스텀 디자인 시스템** (`https://ui.shadcn.com/` 기반 컴포넌트 구조 + 마리오/닌텐도 2001 베벨 메탈 플레이트, 카본 그릴 `#21242e`, 시그널 오렌지 `#f68d1f` 커스텀 스타일링)
 - **전역 상태 관리**: **Zustand** (`zustand` + `persist` 미들웨어 사용으로 `localStorage` 자동 동기화)
 - **단계별 시연 진행 방식**: 시연 순서에 맞춰 **[Step 1: 로컬스토리지 연동 프로필 페이지]**를 우선 구축한 후, 차후 단계로 관리자 대시보드 및 통계 기능을 순차적 확장.
 
@@ -47,13 +49,33 @@
 - **페르소나**: 프로필 정보를 실시간으로 수정하려는 사용자
 - **사용자 흐름**:
   1. 민수는 관리자 대시보드(`/admin`)에 접속한다.
-  2. 신규 포트폴리오 링크를 추가하고, 드래그 앤 드롭(또는 이동 버튼)으로 링크 노출 순서를 즉시 변경한다.
+  2. 마리오/닌텐도 2001 커스텀 스타일이 적용된 shadcn/ui 기반 컴포넌트(Button, Card, Dialog, Input 등)를 통해 신규 포트폴리오 링크를 추가하고 노출 순서를 즉시 변경한다.
   3. 우측 모바일 라이브 프리뷰 캔버스에서 수정 사항이 실시간 렌더링되는 모습을 확인한다.
   4. 수정된 데이터는 Zustand + LocalStorage에 자동 저장되어 공개 프로필 페이지에 즉시 적용된다.
 
 ---
 
-## 4. 단계별 시연 및 기능 요구사항 (Step-by-Step Feature Specs)
+## 4. 디자인 시스템 & UI 구성 요소 (Design System & shadcn/ui + Mario Theme)
+
+- **디자인 기반 기준**: [shadcn/ui (https://ui.shadcn.com/)](https://ui.shadcn.com/)
+- **스타일링 규칙**: **100% Tailwind CSS v4 통일 (CSS Modules 사용금지)**
+- **디자인 언어 커스터마이징 (Mario / Nintendo 2001 Theme)**:
+  - 기존 마리오/닌텐도 2001 콘솔 하드웨어 디자인 언어(Periwinkle 메탈 플레이트, 상단 에지 라이트 하이라이트, 카본 커맨드 그릴 `#21242e`, 시그널 오렌지 `#f68d1f`, 앰버 `#ecab37` 등)를 shadcn/ui 컴포넌트 템플릿에 100% 이식.
+- **UI 컴포넌트 구성 요소 및 재사용 모듈**:
+  - `Button`: 시그널 오렌지, 앰버 유틸리티, 카본 커맨드 베벨 3D 버튼 변주(Variants)
+  - `Card`: 페리윙클 베벨 메탈 프레임 및 헤더 패널
+  - `Badge`: 닌텐도 캡슐 엠블럼 Pill & 앰버 칩 배지
+  - `Input`: 인디고 크롬 보더가 적용된 화이트 입력창
+  - `ProfileHeader`: 마리오 엠블럼, 환영 말풍선 및 상단 카본 네비게이션 재사용 모듈
+  - `ProfileHero`: 아바타, 타이틀, 역할 배지, 이메일 복사 CTA 재사용 모듈
+  - `LinkCardItem`: 개별 링크 정보(배지, 타이틀, 클릭수, 화살표) 렌더링 재사용 컴포넌트
+  - `LinkList`: `LinkCardItem` 스택을 포함하는 shadcn Card 기반 링크 리스트 재사용 모듈
+  - 아이콘 시스템: `lucide-react`
+  - 클래스 병합 유틸리티: `@/lib/utils` (`cn()` 함수)
+
+---
+
+## 5. 단계별 시연 및 기능 요구사항 (Step-by-Step Feature Specs)
 
 ### 📌 [Step 1] 로컬스토리지 연동 프로필 페이지 (현재 시연 단계)
 > **※ 참고**: 대시보드 및 통계/애널리틱스 기능은 포함하지 않고, 프로필 페이지 자체의 로컬스토리지 연동 및 동적 렌더링에 집중합니다.
@@ -69,7 +91,7 @@
 - **URL 경로**: `/admin`
 - **주요 기능**:
   - 프로필 정보(아바타, 이름, 소개글, 역할 배지) 편집
-  - 링크 C.R.U.D 및 순서 변경(드래그 앤 드롭/이동 버튼)
+  - 마리오 스타일 shadcn/ui 컴포넌트를 활용한 링크 C.R.U.D 및 순서 변경(드래그 앤 드롭/이동 버튼)
   - 실시간 라이브 모바일 프리뷰 캔버스 제공
 
 ### 📌 [Step 3] 통계 & 데이터 관리 (차후 확장 단계)
@@ -78,9 +100,9 @@
 
 ---
 
-## 5. 정보 아키텍처 & 데이터 모델 (Data Schema)
+## 6. 정보 아키텍처 & 데이터 모델 (Data Schema)
 
-### 5.1 LocalStorage Data Structure (`mylink_profile_storage`)
+### 6.1 LocalStorage Data Structure (`mylink_profile_storage`)
 
 ```json
 {
@@ -95,31 +117,35 @@
   "theme": "nintendo2001",
   "links": [
     {
-      "id": "link-1",
-      "title": "GitHub 저장소",
-      "description": "오픈소스 프로젝트 및 소스코드 저장소",
+      "id": "link-github",
+      "title": "GitHub - 오픈소스 & 시스템 아키텍처",
+      "description": "대용량 트래픽 처리, 백엔드 파이프라인 및 오픈소스 프로젝트 코드베이스",
       "url": "https://github.com",
       "badge": "DEV",
       "enabled": true,
-      "clicks": 142
+      "clicks": 342
     },
     {
-      "id": "link-2",
-      "title": "기술 블로그",
-      "description": "서버 아키텍처 및 백엔드 지식 기록",
+      "id": "link-blog",
+      "title": "Velog - 개발 및 서버 아키텍처 블로그",
+      "description": "Node.js, Python FastAPI, Docker, K8s 시스템 구축 및 성능 최적화 일지",
       "url": "https://velog.io",
       "badge": "BLOG",
       "enabled": true,
-      "clicks": 89
+      "clicks": 218
     }
   ]
 }
 ```
 
+### 6.2 기본 더미 데이터 모듈 (Mock Data Module)
+- **파일 위치**: `src/data/mockLinks.ts`
+- **구성 요소**: 6가지 주요 카테고리별 더미 링크 데이터 (`GitHub`, `Velog 블로그`, `API Docs`, `포트폴리오`, `유튜브`, `Buy Me a Coffee 후원`) 탑재.
+
 ---
 
-## 6. 단계별 개발 및 시연 로드맵 (Step-by-Step Roadmap)
+## 7. 단계별 개발 및 시연 로드맵 (Step-by-Step Roadmap)
 
-- **Step 1 (현재 진행)**: LocalStorage 연동 프로필 페이지 완성 및 실시간 테마/데이터 렌더링 시연
-- **Step 2 (다음 진행)**: 관리자 대시보드 (`/admin`) 구축 및 링크 C.R.U.D / 라이브 프리뷰 연동
+- **Step 1 (현재 진행)**: LocalStorage 연동 프로필 페이지 완성 및 실시간 테마/데이터 렌더링 시연 (기본 MOCK_LINKS 더미 데이터 활용)
+- **Step 2 (다음 진행)**: 마리오 테마 shadcn/ui 기반 관리자 대시보드 (`/admin`) 구축 및 링크 C.R.U.D / 라이브 프리뷰 연동
 - **Step 3 (추후 확장)**: 클릭 통계 분석 및 데이터 JSON 백업/복구 기능 추가
