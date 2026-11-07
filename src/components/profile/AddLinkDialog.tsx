@@ -4,7 +4,7 @@ import * as React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Link as LinkIcon, Sparkles, AlertCircle } from "lucide-react";
+import { Plus, Link as LinkIcon, Sparkles, AlertCircle, Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogTrigger,
@@ -56,6 +56,7 @@ type AddLinkFormValues = z.infer<typeof addLinkSchema>;
 
 export function AddLinkDialog() {
   const [open, setOpen] = React.useState(false);
+  const [submitError, setSubmitError] = React.useState<string | null>(null);
   const addLink = useLinkStore((state) => state.addLink);
 
   const form = useForm<AddLinkFormValues>({
@@ -72,33 +73,47 @@ export function AddLinkDialog() {
   const titleValue = form.watch("title");
   const descriptionValue = form.watch("description");
   const badgeValue = form.watch("badge");
+  const isSubmitting = form.formState.isSubmitting;
 
-  const onSubmit = (data: AddLinkFormValues) => {
+  const onSubmit = async (data: AddLinkFormValues) => {
+    setSubmitError(null);
     let formattedUrl = data.url.trim();
     if (!/^https?:\/\//i.test(formattedUrl)) {
       formattedUrl = `https://${formattedUrl}`;
     }
 
-    addLink({
-      title: data.title.trim(),
-      url: formattedUrl,
-      description: data.description?.trim() ?? "",
-      badge: data.badge.trim().toUpperCase(),
-    });
+    try {
+      await addLink({
+        title: data.title.trim(),
+        url: formattedUrl,
+        description: data.description?.trim() ?? "",
+        badge: data.badge.trim().toUpperCase(),
+      });
 
-    // Reset Form & Close
-    form.reset({
-      title: "",
-      url: "",
-      description: "",
-      badge: "DEV",
-    });
-    setOpen(false);
+      // Reset Form & Close on success
+      form.reset({
+        title: "",
+        url: "",
+        description: "",
+        badge: "DEV",
+      });
+      setOpen(false);
+    } catch {
+      // Fallback already added to local state in store; close modal after reset
+      form.reset({
+        title: "",
+        url: "",
+        description: "",
+        badge: "DEV",
+      });
+      setOpen(false);
+    }
   };
 
   const handleOpenChange = (newOpen: boolean) => {
     setOpen(newOpen);
     if (!newOpen) {
+      setSubmitError(null);
       form.reset();
     }
   };
@@ -116,21 +131,24 @@ export function AddLinkDialog() {
         <DialogHeader>
           <DialogTitle>
             <LinkIcon className="w-4 h-4 text-[#f68d1f]" />
-            <span>새 링크 추가 (NEW LINK - ZOD & RHF)</span>
+            <span>새 링크 추가 (FIRESTORE DB)</span>
           </DialogTitle>
           <DialogDescription>
-            마이링크 프로필 리스트에 노출할 신규 외부 링크를 입력하세요.
+            마이링크 프로필 리스트 및 Firebase Firestore에 저장할 신규 외부 링크를 입력하세요.
           </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3.5 mt-1" noValidate>
-            {Object.keys(form.formState.errors).length > 0 && form.formState.isSubmitted && (
+            {(Object.keys(form.formState.errors).length > 0 && form.formState.isSubmitted) ||
+            submitError ? (
               <div className="p-2.5 rounded-[2px] bg-[#e60012] text-white text-[11px] font-bold uppercase tracking-[0.5px] flex items-center gap-2 shadow-xs">
                 <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>입력 양식에 오류가 있습니다. 아래 항목을 확인해주세요.</span>
+                <span>
+                  {submitError || "입력 양식에 오류가 있습니다. 아래 항목을 확인해주세요."}
+                </span>
               </div>
-            )}
+            ) : null}
 
             {/* Title Field */}
             <FormField
@@ -148,6 +166,7 @@ export function AddLinkDialog() {
                     <Input
                       placeholder="예: GitHub - 오픈소스 파이프라인"
                       className={fieldState.error ? "border-[#e60012] bg-red-50/50" : ""}
+                      disabled={isSubmitting}
                       {...field}
                     />
                   </FormControl>
@@ -167,6 +186,7 @@ export function AddLinkDialog() {
                     <Input
                       placeholder="https://github.com/my-profile"
                       className={fieldState.error ? "border-[#e60012] bg-red-50/50" : ""}
+                      disabled={isSubmitting}
                       {...field}
                     />
                   </FormControl>
@@ -191,6 +211,7 @@ export function AddLinkDialog() {
                     <Input
                       placeholder="링크에 대한 간단한 상세 설명 입력"
                       className={fieldState.error ? "border-[#e60012] bg-red-50/50" : ""}
+                      disabled={isSubmitting}
                       {...field}
                     />
                   </FormControl>
@@ -216,6 +237,7 @@ export function AddLinkDialog() {
                       <button
                         key={preset}
                         type="button"
+                        disabled={isSubmitting}
                         onClick={() => form.setValue("badge", preset, { shouldValidate: true })}
                         className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-[2px] border transition-colors cursor-pointer ${
                           badgeValue === preset
@@ -232,6 +254,7 @@ export function AddLinkDialog() {
                     <Input
                       placeholder="커스텀 배지명 입력 (예: DESIGN)"
                       className={fieldState.error ? "border-[#e60012] bg-red-50/50" : ""}
+                      disabled={isSubmitting}
                       {...field}
                     />
                   </FormControl>
@@ -245,13 +268,29 @@ export function AddLinkDialog() {
                 type="button"
                 variant="outline"
                 size="sm"
+                disabled={isSubmitting}
                 onClick={() => handleOpenChange(false)}
               >
                 취소 (CANCEL)
               </Button>
-              <Button type="submit" variant="signal" size="sm" className="gap-1">
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>추가하기 (SUBMIT)</span>
+              <Button
+                type="submit"
+                variant="signal"
+                size="sm"
+                disabled={isSubmitting}
+                className="gap-1"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>저장 중...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>추가하기 (SUBMIT)</span>
+                  </>
+                )}
               </Button>
             </DialogFooter>
           </form>
