@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
 import { Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +19,9 @@ export function ProfileHero({ name, role, bio, email }: ProfileHeroProps) {
   const handleCopyEmail = () => {
     navigator.clipboard.writeText(email);
     setCopied(true);
+    toast.success("이메일 주소가 클립보드에 복사되었습니다!", {
+      description: email,
+    });
     setTimeout(() => setCopied(false), 2000);
   };
 

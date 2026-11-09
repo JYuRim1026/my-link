@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { toast } from "sonner";
 import {
   collection,
   addDoc,
@@ -66,6 +67,7 @@ interface LinkState {
   ) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
+  updateDisplayName: (newDisplayName: string) => Promise<void>;
   fetchLinks: () => Promise<void>;
   addLink: (
     newLink: Omit<LinkItem, "id" | "clicks" | "enabled">
@@ -154,8 +156,12 @@ export const useLinkStore = create<LinkState>()((set, get) => ({
         email: result.user.email,
         photoURL: result.user.photoURL,
       });
+      toast.success("Google 로그인에 성공했습니다!", {
+        description: `${result.user.email} 계정으로 연결되었습니다.`,
+      });
     } catch (err) {
       console.error("❌ [Google 로그인 실패]:", err);
+      toast.error("Google 로그인에 실패했습니다.");
       set({
         error:
           "구글 로그인에 실패했습니다. Firebase 콘솔 > Authentication > 로그인 방법에서 Google이 사용 설정되어 있는지 확인해주세요.",
@@ -170,8 +176,45 @@ export const useLinkStore = create<LinkState>()((set, get) => ({
       await signOut(auth);
       set({ user: null, links: MOCK_LINKS, error: null });
       console.log("✅ [로그아웃 완료]");
+      toast.success("안전하게 로그아웃되었습니다.");
     } catch (err) {
       console.error("❌ [로그아웃 실패]:", err);
+      toast.error("로그아웃 중 오류가 발생했습니다.");
+    }
+  },
+
+  updateDisplayName: async (newDisplayName) => {
+    const currentUser = get().user || auth.currentUser;
+    if (!currentUser) return;
+    const trimmed = newDisplayName.trim();
+    if (!trimmed) return;
+
+    console.log(
+      `✏️ [프로필 닉네임 변경] UID: ${currentUser.uid}, 새 닉네임: ${trimmed}`
+    );
+    try {
+      const userDocRef = doc(db, "users", currentUser.uid);
+      await setDoc(
+        userDocRef,
+        {
+          displayName: trimmed,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+      set((state) => ({
+        user: state.user
+          ? { ...state.user, name: trimmed, displayName: trimmed }
+          : null,
+      }));
+      console.log(`✅ [프로필 닉네임 변경 완료] ${trimmed}`);
+      toast.success("닉네임이 변경되었습니다!", {
+        description: `새 닉네임: ${trimmed}`,
+      });
+    } catch (err) {
+      console.error("❌ [프로필 닉네임 변경 실패]:", err);
+      toast.error("닉네임 변경에 실패했습니다.");
+      throw err;
     }
   },
 
@@ -265,8 +308,12 @@ export const useLinkStore = create<LinkState>()((set, get) => ({
 
       // Refresh link list from Firestore sorted by createdAt desc
       await get().fetchLinks();
+      toast.success("새 링크가 추가되었습니다!", {
+        description: linkData.title,
+      });
     } catch (err) {
       console.error("❌ [링크 추가 실패]:", err);
+      toast.error("링크 추가에 실패했습니다.");
       set({
         error:
           "Firestore 저장에 실패했습니다. Firebase 콘솔의 Firestore 규칙(Rules)을 확인해주세요.",
@@ -319,8 +366,12 @@ export const useLinkStore = create<LinkState>()((set, get) => ({
           isLoading: false,
         }));
       }
+      toast.success("링크가 성공적으로 수정되었습니다!", {
+        description: updatedData.title,
+      });
     } catch (err) {
       console.error("❌ [링크 수정 실패]:", err);
+      toast.error("링크 수정 중 오류가 발생했습니다.");
       set({
         error: "링크 수정 중 오류가 발생했습니다.",
         isLoading: false,
@@ -353,8 +404,10 @@ export const useLinkStore = create<LinkState>()((set, get) => ({
           isLoading: false,
         }));
       }
+      toast.success("링크가 삭제되었습니다.");
     } catch (err) {
       console.error("❌ [링크 삭제 실패]:", err);
+      toast.error("링크 삭제 중 오류가 발생했습니다.");
       set({
         error: "링크 삭제 중 오류가 발생했습니다.",
         isLoading: false,
