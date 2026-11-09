@@ -56,6 +56,7 @@ type AddLinkFormValues = z.infer<typeof addLinkSchema>;
 
 export function AddLinkDialog() {
   const [open, setOpen] = React.useState(false);
+  const [isAdding, setIsAdding] = React.useState(false);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
   const addLink = useLinkStore((state) => state.addLink);
 
@@ -73,10 +74,11 @@ export function AddLinkDialog() {
   const titleValue = form.watch("title");
   const descriptionValue = form.watch("description");
   const badgeValue = form.watch("badge");
-  const isSubmitting = form.formState.isSubmitting;
+  const isSubmitting = form.formState.isSubmitting || isAdding;
 
   const onSubmit = async (data: AddLinkFormValues) => {
     setSubmitError(null);
+    setIsAdding(true);
     let formattedUrl = data.url.trim();
     if (!/^https?:\/\//i.test(formattedUrl)) {
       formattedUrl = `https://${formattedUrl}`;
@@ -99,18 +101,14 @@ export function AddLinkDialog() {
       });
       setOpen(false);
     } catch {
-      // Fallback already added to local state in store; close modal after reset
-      form.reset({
-        title: "",
-        url: "",
-        description: "",
-        badge: "DEV",
-      });
-      setOpen(false);
+      setSubmitError("링크 추가 중 오류가 발생했습니다. 다시 시도해주세요.");
+    } finally {
+      setIsAdding(false);
     }
   };
 
   const handleOpenChange = (newOpen: boolean) => {
+    if (isSubmitting) return;
     setOpen(newOpen);
     if (!newOpen) {
       setSubmitError(null);
@@ -128,6 +126,18 @@ export function AddLinkDialog() {
       </DialogTrigger>
 
       <DialogContent className="max-w-md">
+        {/* 추가 및 목록 갱신 도중 다이얼로그 내부 오버레이 로딩 표시 */}
+        {isSubmitting && (
+          <div className="absolute inset-0 z-50 bg-[#21242e]/60 backdrop-blur-[1px] rounded-[6px] flex flex-col items-center justify-center gap-2 text-white">
+            <div className="bg-[#21242e] border-2 border-white px-4 py-3 rounded-[4px] shadow-xl flex flex-col items-center gap-2">
+              <Loader2 className="w-6 h-6 animate-spin text-[#f68d1f]" />
+              <span className="text-xs font-bold uppercase tracking-[0.5px] text-[#ecab37]">
+                새 링크 추가 및 목록 갱신 중...
+              </span>
+            </div>
+          </div>
+        )}
+
         <DialogHeader>
           <DialogTitle>
             <LinkIcon className="w-4 h-4 text-[#f68d1f]" />
@@ -283,7 +293,7 @@ export function AddLinkDialog() {
                 {isSubmitting ? (
                   <>
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>저장 중...</span>
+                    <span>추가 중...</span>
                   </>
                 ) : (
                   <>

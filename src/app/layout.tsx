@@ -15,13 +15,17 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "마이링크 | MyLink",
   description: "안정적인 백엔드 시스템과 서버 아키텍처를 구축하는 개발자의 마이링크(MyLink)",
+  other: {
+    google: "notranslate",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="ko"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      translate="no"
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased notranslate`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>

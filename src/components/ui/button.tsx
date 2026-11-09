@@ -26,6 +26,8 @@ const buttonVariants = cva(
           "bg-[#21242e] hover:bg-[#3d4f97] text-white rounded-none border-t border-l border-white/40 border-b-2 border-r-2 border-black",
         periwinkle:
           "bg-[#8ba1d4] hover:bg-[#7a8aba] text-[#21242e] rounded-[4px] border-t-2 border-l-2 border-white border-b-2 border-r-2 border-[#3d4f97]",
+        destructive:
+          "bg-[#e60012] hover:bg-[#b8000e] text-white rounded-[2px] border-t border-l border-white border-b-2 border-r-2 border-black",
         outline:
           "border-2 border-[#3d4f97] bg-white text-[#21242e] hover:bg-[#9fbee7] rounded-[2px]",
       },
