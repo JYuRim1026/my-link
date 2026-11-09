@@ -100,10 +100,19 @@ export function ProfileHeader({
 
   const handleSaveDisplayName = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newName.trim()) return;
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+
+    // 변경 사항이 없으면 업데이트하지 않고 바로 닫기
+    if (trimmed === displayUserName) {
+      toast.info("변경된 사항이 없습니다.");
+      setIsEditingName(false);
+      return;
+    }
+
     setIsSavingName(true);
     try {
-      await updateDisplayName(newName.trim());
+      await updateDisplayName(trimmed);
       setIsEditingName(false);
     } catch {
       // 에러 발생 시 유지

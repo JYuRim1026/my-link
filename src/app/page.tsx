@@ -147,12 +147,14 @@ export default function LinkListPage() {
     }
   };
 
-  // 기본 프로필 정보 유지 (ProfileHero는 기존 마이링크 타이틀/소개글 유지)
+  // 로그인 유저의 프로필 정보(displayName, role, bio)를 반영
   const profileUser = {
-    name: "마이링크 (MyLink)",
-    role: "Backend & Server Engineer",
-    bio: "안정적인 백엔드 시스템과 99.9% 업타임의 서버 아키텍처를 구축하는 개발자입니다.",
-    avatarUrl: "/avatar.jpg",
+    name: user?.displayName || user?.name || "마이링크 (MyLink)",
+    role: user?.role || "Backend & Server Engineer",
+    bio:
+      user?.bio ||
+      "안정적인 백엔드 시스템과 99.9% 업타임의 서버 아키텍처를 구축하는 개발자입니다.",
+    avatarUrl: user?.photoURL || "/avatar.jpg",
     email: user?.email || "contact@example.com",
     statusText: user ? "ONLINE" : "OFFLINE (GUEST)",
   };

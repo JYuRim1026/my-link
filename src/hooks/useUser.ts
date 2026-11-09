@@ -82,6 +82,10 @@ export function useUser() {
               uid: firebaseUser.uid,
               name: syncedDisplayName,
               displayName: syncedDisplayName,
+              role: data.role || "Backend & Server Engineer",
+              bio:
+                data.bio ||
+                "안정적인 백엔드 시스템과 99.9% 업타임의 서버 아키텍처를 구축하는 개발자입니다.",
               email: data.email || firebaseUser.email || "",
               photoURL: data.photoURL || firebaseUser.photoURL || "/avatar.jpg",
             };

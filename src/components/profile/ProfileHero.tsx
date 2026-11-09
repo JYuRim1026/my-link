@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { EditProfileDialog } from "./EditProfileDialog";
 
 interface ProfileHeroProps {
   name: string;
@@ -46,25 +47,29 @@ export function ProfileHero({ name, role, bio, email }: ProfileHeroProps) {
           </p>
         </div>
 
-        {/* Copy Email CTA Button */}
-        <Button
-          variant="default"
-          size="lg"
-          onClick={handleCopyEmail}
-          className="shrink-0 flex items-center gap-1.5"
-        >
-          {copied ? (
-            <>
-              <Check className="w-4 h-4 text-white" />
-              <span>COPIED!</span>
-            </>
-          ) : (
-            <>
-              <Copy className="w-4 h-4 text-white" />
-              <span>COPY EMAIL</span>
-            </>
-          )}
-        </Button>
+        {/* 우측 액션 버튼 영역: [프로필 수정] + [COPY EMAIL] */}
+        <div className="flex flex-wrap items-center justify-center sm:justify-end gap-2 shrink-0">
+          <EditProfileDialog />
+
+          <Button
+            variant="default"
+            size="lg"
+            onClick={handleCopyEmail}
+            className="shrink-0 flex items-center gap-1.5 cursor-pointer"
+          >
+            {copied ? (
+              <>
+                <Check className="w-4 h-4 text-white" />
+                <span>COPIED!</span>
+              </>
+            ) : (
+              <>
+                <Copy className="w-4 h-4 text-white" />
+                <span>COPY EMAIL</span>
+              </>
+            )}
+          </Button>
+        </div>
       </div>
     </div>
   );

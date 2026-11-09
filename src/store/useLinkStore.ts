@@ -9,6 +9,7 @@ import {
   deleteDoc,
   doc,
   query,
+  where,
   orderBy,
   serverTimestamp,
 } from "firebase/firestore";
@@ -23,6 +24,8 @@ export interface UserProfile {
   uid: string;
   name: string;
   displayName?: string;
+  role?: string;
+  bio?: string;
   email: string;
   photoURL: string;
 }
@@ -67,7 +70,14 @@ interface LinkState {
   ) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
+  checkDisplayNameDuplicate: (displayName: string) => Promise<boolean>;
   updateDisplayName: (newDisplayName: string) => Promise<void>;
+  updateProfile: (profileData: {
+    displayName: string;
+    role: string;
+    bio: string;
+    photoURL?: string;
+  }) => Promise<void>;
   fetchLinks: () => Promise<void>;
   addLink: (
     newLink: Omit<LinkItem, "id" | "clicks" | "enabled">
@@ -183,11 +193,45 @@ export const useLinkStore = create<LinkState>()((set, get) => ({
     }
   },
 
+  checkDisplayNameDuplicate: async (displayName) => {
+    const trimmed = displayName.trim();
+    if (!trimmed) return false;
+    const currentUser = get().user || auth.currentUser;
+    console.log(`🔍 [displayName 중복 확인 요청] 검사 대상: "${trimmed}"`);
+
+    try {
+      const usersRef = collection(db, "users");
+      const q = query(usersRef, where("displayName", "==", trimmed));
+      const snapshot = await getDocs(q);
+
+      // 본인의 UID가 아닌 다른 문서에서 동일한 displayName을 사용 중인지 확인
+      const isDuplicate = snapshot.docs.some(
+        (docSnap) => docSnap.id !== currentUser?.uid
+      );
+
+      console.log(
+        isDuplicate
+          ? `⚠️ [중복 확인 결과] "${trimmed}" 이미 사용 중 (중복)`
+          : `✅ [중복 확인 결과] "${trimmed}" 사용 가능`
+      );
+      return isDuplicate;
+    } catch (err) {
+      console.error("❌ [displayName 중복 확인 실패]:", err);
+      throw err;
+    }
+  },
+
   updateDisplayName: async (newDisplayName) => {
     const currentUser = get().user || auth.currentUser;
     if (!currentUser) return;
     const trimmed = newDisplayName.trim();
     if (!trimmed) return;
+
+    const isDup = await get().checkDisplayNameDuplicate(trimmed);
+    if (isDup) {
+      toast.error("이미 사용 중인 닉네임(displayName)입니다.");
+      throw new Error("DUPLICATE_DISPLAY_NAME");
+    }
 
     console.log(
       `✏️ [프로필 닉네임 변경] UID: ${currentUser.uid}, 새 닉네임: ${trimmed}`
@@ -214,6 +258,64 @@ export const useLinkStore = create<LinkState>()((set, get) => ({
     } catch (err) {
       console.error("❌ [프로필 닉네임 변경 실패]:", err);
       toast.error("닉네임 변경에 실패했습니다.");
+      throw err;
+    }
+  },
+
+  updateProfile: async (profileData) => {
+    const currentUser = get().user || auth.currentUser;
+    if (!currentUser) return;
+    const trimmedName = profileData.displayName.trim();
+
+    console.log(
+      `✏️ [프로필 전체 수정 요청] UID: ${currentUser.uid}`,
+      profileData
+    );
+
+    // 저장 전 displayName 중복 여부 재검증
+    const isDup = await get().checkDisplayNameDuplicate(trimmedName);
+    if (isDup) {
+      toast.error("이미 사용 중인 닉네임(displayName)입니다.");
+      throw new Error("DUPLICATE_DISPLAY_NAME");
+    }
+
+    try {
+      const userDocRef = doc(db, "users", currentUser.uid);
+      await Promise.all([
+        setDoc(
+          userDocRef,
+          {
+            displayName: trimmedName,
+            role: profileData.role.trim(),
+            bio: profileData.bio.trim(),
+            ...(profileData.photoURL ? { photoURL: profileData.photoURL.trim() } : {}),
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        ),
+        minLoadingDelay(600),
+      ]);
+
+      set((state) => ({
+        user: state.user
+          ? {
+              ...state.user,
+              name: trimmedName,
+              displayName: trimmedName,
+              role: profileData.role.trim(),
+              bio: profileData.bio.trim(),
+              ...(profileData.photoURL ? { photoURL: profileData.photoURL.trim() } : {}),
+            }
+          : null,
+      }));
+
+      console.log(`✅ [프로필 수정 완료] displayName: ${trimmedName}`);
+      toast.success("프로필 정보가 성공적으로 수정되었습니다!", {
+        description: `닉네임: ${trimmedName}`,
+      });
+    } catch (err) {
+      console.error("❌ [프로필 수정 실패]:", err);
+      toast.error("프로필 수정 중 오류가 발생했습니다.");
       throw err;
     }
   },
