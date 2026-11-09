@@ -10,7 +10,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { useLinkStore } from "@/store/useLinkStore";
+import { useDeleteLinkMutation } from "@/hooks/useLinks";
 
 interface DeleteLinkDialogProps {
   open: boolean;
@@ -25,18 +25,15 @@ export function DeleteLinkDialog({
   linkId,
   linkTitle,
 }: DeleteLinkDialogProps) {
-  const [isDeleting, setIsDeleting] = React.useState(false);
-  const deleteLink = useLinkStore((state) => state.deleteLink);
+  const deleteLinkMutation = useDeleteLinkMutation();
+  const isDeleting = deleteLinkMutation.isPending;
 
   const handleConfirmDelete = async () => {
-    setIsDeleting(true);
     try {
-      await deleteLink(linkId);
+      await deleteLinkMutation.mutateAsync(linkId);
       onOpenChange(false);
     } catch {
-      // 에러는 store의 error 상태에 표시됨
-    } finally {
-      setIsDeleting(false);
+      // 에러 토스트는 mutation에서 표시됨
     }
   };
 

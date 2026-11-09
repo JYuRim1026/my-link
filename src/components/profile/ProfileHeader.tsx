@@ -1,7 +1,9 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   LogIn,
@@ -16,6 +18,9 @@ import {
   Pencil,
   RefreshCw,
   Database,
+  Globe,
+  LayoutDashboard,
+  ExternalLink,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,6 +34,7 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { useLinkStore } from "@/store/useLinkStore";
+import { useUpdateProfileMutation } from "@/hooks/useUser";
 
 interface ProfileHeaderProps {
   avatarUrl: string;
@@ -41,12 +47,13 @@ export function ProfileHeader({
   name,
   statusText,
 }: ProfileHeaderProps) {
+  const router = useRouter();
   const user = useLinkStore((state) => state.user);
   const links = useLinkStore((state) => state.links);
   const authLoading = useLinkStore((state) => state.authLoading);
   const loginWithGoogle = useLinkStore((state) => state.loginWithGoogle);
   const logout = useLinkStore((state) => state.logout);
-  const updateDisplayName = useLinkStore((state) => state.updateDisplayName);
+  const updateProfileMutation = useUpdateProfileMutation();
 
   const [isLoggingIn, setIsLoggingIn] = React.useState(false);
   const [copiedUid, setCopiedUid] = React.useState(false);
@@ -56,6 +63,9 @@ export function ProfileHeader({
   const [isEditingName, setIsEditingName] = React.useState(false);
   const [newName, setNewName] = React.useState("");
   const [isSavingName, setIsSavingName] = React.useState(false);
+
+  const displayUserName = user?.displayName || user?.name || name;
+  const personalPagePath = `/${encodeURIComponent(displayUserName)}`;
 
   // 통계 계산 (총 링크 수, 직접 추가한 개인화 링크 수, 총 누적 클릭 수)
   const totalLinksCount = links.length;
@@ -90,10 +100,11 @@ export function ProfileHeader({
 
   const handleCopyProfileUrl = () => {
     if (typeof window === "undefined") return;
-    navigator.clipboard.writeText(window.location.href);
+    const shareUrl = `${window.location.origin}${personalPagePath}`;
+    navigator.clipboard.writeText(shareUrl);
     setCopiedShareUrl(true);
-    toast.success("내 프로필 페이지 주소가 복사되었습니다!", {
-      description: window.location.href,
+    toast.success("내 개인 웹페이지 주소가 복사되었습니다!", {
+      description: shareUrl,
     });
     setTimeout(() => setCopiedShareUrl(false), 1800);
   };
@@ -110,18 +121,11 @@ export function ProfileHeader({
       return;
     }
 
-    setIsSavingName(true);
-    try {
-      await updateDisplayName(trimmed);
-      setIsEditingName(false);
-    } catch {
-      // 에러 발생 시 유지
-    } finally {
-      setIsSavingName(false);
-    }
+    // 낙관적 업데이트(Optimistic Update) 적용: 즉시 폼을 닫고 UI에 반영하며 실패 시 자동 롤백
+    setIsEditingName(false);
+    setIsSavingName(false);
+    updateProfileMutation.mutate({ displayName: trimmed });
   };
-
-  const displayUserName = user?.displayName || user?.name || name;
 
   return (
     <header className="w-full space-y-2">
@@ -149,10 +153,39 @@ export function ProfileHeader({
           </div>
         </div>
 
-        {/* 우측 상태 배지 & 프로필 드롭다운 메뉴 / 구글 로그인 버튼 */}
+        {/* 우측 상태 배지 & 내 페이지 바로가기 버튼 & 프로필 드롭다운 메뉴 / 구글 로그인 버튼 */}
         <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end w-full sm:w-auto">
           <Badge variant="amber">{statusText}</Badge>
-          <Badge variant="pill">MyLink v2.0</Badge>
+
+          {user && (
+            <>
+              <Link href="/">
+                <Button
+                  type="button"
+                  variant="default"
+                  size="sm"
+                  className="gap-1 px-2.5 py-1 cursor-pointer shadow-sm"
+                  title="마이페이지(링크 관리 홈) 바로가기"
+                >
+                  <LayoutDashboard className="w-3.5 h-3.5 text-white" />
+                  <span>마이페이지</span>
+                </Button>
+              </Link>
+
+              <Link href={personalPagePath}>
+                <Button
+                  type="button"
+                  variant="amber"
+                  size="sm"
+                  className="gap-1 px-2.5 py-1 cursor-pointer shadow-sm"
+                  title={`내 개인 웹페이지 (${personalPagePath}) 바로가기`}
+                >
+                  <Globe className="w-3.5 h-3.5 text-[#21242e]" />
+                  <span>내 페이지 바로가기</span>
+                </Button>
+              </Link>
+            </>
+          )}
 
           {authLoading || isLoggingIn ? (
             <Button variant="carbon" size="sm" disabled className="gap-1">
@@ -334,6 +367,25 @@ export function ProfileHeader({
 
                 {/* 3. 빠른 액션 & 4. 계정 제어 */}
                 <div className="space-y-1">
+                  <DropdownMenuItem
+                    onClick={() => router.push(personalPagePath)}
+                    className="bg-[#ecab37] text-[#21242e] hover:bg-[#e48600] hover:text-[#21242e] border border-black justify-between"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Globe className="w-3.5 h-3.5 text-[#21242e]" />
+                      <span>내 개인 웹페이지 이동 ({personalPagePath})</span>
+                    </span>
+                    <ExternalLink className="w-3 h-3 text-[#21242e]" />
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem
+                    onClick={() => router.push("/")}
+                    className="bg-white/80 border border-[#3d4f97]"
+                  >
+                    <LayoutDashboard className="w-3.5 h-3.5 text-[#3d4f97]" />
+                    <span>마이페이지 (링크 관리 홈) 이동</span>
+                  </DropdownMenuItem>
+
                   <button
                     type="button"
                     onClick={handleCopyProfileUrl}
@@ -341,7 +393,7 @@ export function ProfileHeader({
                   >
                     <span className="flex items-center gap-2">
                       <Share2 className="w-3.5 h-3.5 text-[#3d4f97]" />
-                      <span>내 프로필 페이지 주소 복사</span>
+                      <span>내 개인 웹페이지 주소 복사</span>
                     </span>
                     {copiedShareUrl && (
                       <span className="text-[10px] text-[#e60012] font-black">
@@ -386,7 +438,9 @@ export function ProfileHeader({
       {/* Primary Carbon Navigation Bar */}
       <div className="bg-[#21242e] bg-[radial-gradient(#ffffff15_1px,transparent_1px)] [background-size:6px_6px] border-t-2 border-l-2 border-white/40 border-b-2 border-r-2 border-black p-2 flex flex-col sm:flex-row items-center justify-between gap-2 shadow-md w-full">
         <div className="flex items-center justify-between w-full sm:w-auto gap-2">
-          <Badge variant="pill">Nintendo® MyLink</Badge>
+          <Link href="/" className="hover:opacity-90 transition-opacity">
+            <Badge variant="pill">Nintendo® MyLink</Badge>
+          </Link>
           {user && (
             <span className="text-[10px] font-mono text-[#9fbee7]">
               {displayUserName} ({user.email})
@@ -395,11 +449,20 @@ export function ProfileHeader({
         </div>
 
         <div className="w-full sm:w-auto flex items-center justify-between sm:justify-start gap-2 sm:gap-4 font-black text-[11px] sm:text-xs tracking-wider text-[#e48600] overflow-x-auto whitespace-nowrap py-0.5 px-1">
+          <Link href="/" className="hover:text-white transition-colors">
+            MYPAGE (홈)
+          </Link>
+          {user && (
+            <Link
+              href={personalPagePath}
+              className="text-[#ecab37] hover:text-white transition-colors underline underline-offset-2"
+            >
+              내 웹페이지 ({personalPagePath})
+            </Link>
+          )}
           <a href="#" className="hover:text-white transition-colors">GAMES</a>
           <a href="#" className="hover:text-white transition-colors">SYSTEMS</a>
           <a href="#" className="hover:text-white transition-colors">NEWS</a>
-          <a href="#" className="hover:text-white transition-colors">NSIDER</a>
-          <a href="#" className="hover:text-white transition-colors">DOWNLOADS</a>
         </div>
       </div>
     </header>

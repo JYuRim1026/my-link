@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useLinkStore } from "@/store/useLinkStore";
+import { useAddLinkMutation } from "@/hooks/useLinks";
 
 const BADGE_PRESETS = ["DEV", "BLOG", "SYS", "WORK", "VIDEO", "SUPPORT"];
 
@@ -56,9 +56,8 @@ type AddLinkFormValues = z.infer<typeof addLinkSchema>;
 
 export function AddLinkDialog() {
   const [open, setOpen] = React.useState(false);
-  const [isAdding, setIsAdding] = React.useState(false);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
-  const addLink = useLinkStore((state) => state.addLink);
+  const addLinkMutation = useAddLinkMutation();
 
   const form = useForm<AddLinkFormValues>({
     resolver: zodResolver(addLinkSchema),
@@ -74,18 +73,17 @@ export function AddLinkDialog() {
   const titleValue = form.watch("title");
   const descriptionValue = form.watch("description");
   const badgeValue = form.watch("badge");
-  const isSubmitting = form.formState.isSubmitting || isAdding;
+  const isSubmitting = form.formState.isSubmitting || addLinkMutation.isPending;
 
   const onSubmit = async (data: AddLinkFormValues) => {
     setSubmitError(null);
-    setIsAdding(true);
     let formattedUrl = data.url.trim();
     if (!/^https?:\/\//i.test(formattedUrl)) {
       formattedUrl = `https://${formattedUrl}`;
     }
 
     try {
-      await addLink({
+      await addLinkMutation.mutateAsync({
         title: data.title.trim(),
         url: formattedUrl,
         description: data.description?.trim() ?? "",
@@ -102,8 +100,6 @@ export function AddLinkDialog() {
       setOpen(false);
     } catch {
       setSubmitError("링크 추가 중 오류가 발생했습니다. 다시 시도해주세요.");
-    } finally {
-      setIsAdding(false);
     }
   };
 

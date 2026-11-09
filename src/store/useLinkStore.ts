@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import {
   collection,
   addDoc,
+  getDoc,
   getDocs,
   setDoc,
   updateDoc,
@@ -122,25 +123,50 @@ export const useLinkStore = create<LinkState>()((set, get) => ({
       authLoading: false,
     });
 
-    // Firestore users/{user.uid} 문서에 유저 정보(displayName은 이메일 앞부분) 저장
+    // Firestore users/{user.uid} 문서 확인 후 최초 가입 시에만 기본 displayName 세팅
     try {
       const userDocRef = doc(db, "users", firebaseUser.uid);
-      await setDoc(
-        userDocRef,
-        {
-          uid: firebaseUser.uid,
-          email: firebaseUser.email || "",
-          displayName: emailPrefix,
-          photoURL: firebaseUser.photoURL || "",
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
-      console.log(
-        `✅ [Firestore 유저 등록 완료] 경로: users/${firebaseUser.uid} (displayName: ${emailPrefix})`
-      );
+      const docSnap = await getDoc(userDocRef);
+
+      if (!docSnap.exists()) {
+        await setDoc(
+          userDocRef,
+          {
+            uid: firebaseUser.uid,
+            email: firebaseUser.email || "",
+            displayName: emailPrefix,
+            role: "Backend & Server Engineer",
+            bio: "안정적인 백엔드 시스템과 99.9% 업타임의 서버 아키텍처를 구축하는 개발자입니다.",
+            photoURL: firebaseUser.photoURL || "",
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+        console.log(
+          `✅ [Firestore 신규 유저 등록 완료] 경로: users/${firebaseUser.uid} (displayName: ${emailPrefix})`
+        );
+      } else {
+        const existingData = docSnap.data();
+        const savedDisplayName = existingData.displayName || emailPrefix;
+        set({
+          user: {
+            uid: firebaseUser.uid,
+            name: savedDisplayName,
+            displayName: savedDisplayName,
+            role: existingData.role || "Backend & Server Engineer",
+            bio:
+              existingData.bio ||
+              "안정적인 백엔드 시스템과 99.9% 업타임의 서버 아키텍처를 구축하는 개발자입니다.",
+            email: existingData.email || firebaseUser.email || "",
+            photoURL:
+              existingData.photoURL || firebaseUser.photoURL || "/avatar.jpg",
+          },
+          authLoading: false,
+        });
+      }
     } catch (err) {
-      console.error("❌ [Firestore 유저 문서 저장 실패]:", err);
+      console.error("❌ [Firestore 유저 문서 확인/저장 실패]:", err);
     }
 
     // 해당 유저의 개인화 경로(users/{user.uid}/links)에서 링크 목록 불러오기

@@ -30,7 +30,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { LinkItem } from "@/data/mockLinks";
-import { useLinkStore } from "@/store/useLinkStore";
+import { useUpdateLinkMutation } from "@/hooks/useLinks";
 import { DeleteLinkDialog } from "./DeleteLinkDialog";
 
 const BADGE_PRESETS = ["DEV", "BLOG", "SYS", "WORK", "VIDEO", "SUPPORT"];
@@ -70,7 +70,7 @@ export function LinkCardItem({ link, onLinkClick }: LinkCardItemProps) {
   const [isEditing, setIsEditing] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
 
-  const updateLink = useLinkStore((state) => state.updateLink);
+  const updateLinkMutation = useUpdateLinkMutation();
 
   const form = useForm<EditLinkFormValues>({
     resolver: zodResolver(editLinkSchema),
@@ -86,7 +86,7 @@ export function LinkCardItem({ link, onLinkClick }: LinkCardItemProps) {
   const titleValue = form.watch("title");
   const descriptionValue = form.watch("description");
   const badgeValue = form.watch("badge");
-  const isSubmitting = form.formState.isSubmitting;
+  const isSubmitting = form.formState.isSubmitting || updateLinkMutation.isPending;
 
   const renderIcon = (iconName: string) => {
     const props = { className: "w-4 h-4 shrink-0" };
@@ -132,11 +132,14 @@ export function LinkCardItem({ link, onLinkClick }: LinkCardItemProps) {
     }
 
     try {
-      await updateLink(link.id, {
-        title: data.title.trim(),
-        url: formattedUrl,
-        description: data.description?.trim() ?? "",
-        badge: data.badge.trim().toUpperCase(),
+      await updateLinkMutation.mutateAsync({
+        id: link.id,
+        updatedData: {
+          title: data.title.trim(),
+          url: formattedUrl,
+          description: data.description?.trim() ?? "",
+          badge: data.badge.trim().toUpperCase(),
+        },
       });
       setIsEditing(false);
     } catch {

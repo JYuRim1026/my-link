@@ -33,6 +33,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLinkStore } from "@/store/useLinkStore";
+import { useUpdateProfileMutation } from "@/hooks/useUser";
 
 const editProfileSchema = z.object({
   displayName: z
@@ -60,7 +61,7 @@ export function EditProfileDialog() {
   const checkDisplayNameDuplicate = useLinkStore(
     (state) => state.checkDisplayNameDuplicate
   );
-  const updateProfile = useLinkStore((state) => state.updateProfile);
+  const updateProfileMutation = useUpdateProfileMutation();
 
   const [open, setOpen] = React.useState(false);
   const [isCheckingDup, setIsCheckingDup] = React.useState(false);
@@ -202,22 +203,14 @@ export function EditProfileDialog() {
       return;
     }
 
-    try {
-      await updateProfile({
-        displayName: trimmedName,
-        role: data.role.trim(),
-        bio: data.bio.trim(),
-      });
-      setOpen(false);
-    } catch (err) {
-      if (err instanceof Error && err.message === "DUPLICATE_DISPLAY_NAME") {
-        setDupStatus("duplicate");
-        form.setError("displayName", {
-          type: "manual",
-          message: "이미 다른 사용자가 사용 중인 displayName입니다.",
-        });
-      }
-    }
+    // 낙관적 업데이트(Optimistic Update) 실행:
+    // onMutate에서 Query 캐시와 스토어가 즉시 업데이트되므로 모달을 바로 닫아 즉각적인 UI 반영 체감
+    setOpen(false);
+    updateProfileMutation.mutate({
+      displayName: trimmedName,
+      role: trimmedRole,
+      bio: trimmedBio,
+    });
   };
 
   const handleOpenChange = (newOpen: boolean) => {
