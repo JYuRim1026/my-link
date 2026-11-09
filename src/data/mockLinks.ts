@@ -8,6 +8,8 @@ export interface LinkItem {
   color?: string;
   enabled: boolean;
   clicks: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export const MOCK_LINKS: LinkItem[] = [

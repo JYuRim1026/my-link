@@ -340,7 +340,7 @@ export function LinkCardItem({ link, onLinkClick }: LinkCardItemProps) {
           </div>
 
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 mb-0.5">
+            <div className="flex items-center gap-2 mb-0.5 flex-wrap">
               <Badge variant="default">{link.badge}</Badge>
               <h2 className="text-xs sm:text-sm font-bold text-[#3d4f97] group-hover:text-[#e60012] group-hover:underline truncate">
                 {link.title}
@@ -349,6 +349,11 @@ export function LinkCardItem({ link, onLinkClick }: LinkCardItemProps) {
             <p className="text-[10px] sm:text-xs text-[#21242e] truncate">
               {link.description}
             </p>
+            {link.updatedAt && (
+              <p className="text-[10px] font-mono text-[#3d4f97]/80 mt-0.5">
+                🕒 수정됨: {link.updatedAt}
+              </p>
+            )}
           </div>
         </div>
 

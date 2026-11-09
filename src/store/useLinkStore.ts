@@ -3,6 +3,7 @@ import {
   collection,
   addDoc,
   getDocs,
+  setDoc,
   updateDoc,
   deleteDoc,
   doc,
@@ -10,17 +11,61 @@ import {
   orderBy,
   serverTimestamp,
 } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import {
+  signInWithPopup,
+  signOut,
+} from "firebase/auth";
+import { db, auth, googleProvider } from "@/lib/firebase";
 import { MOCK_LINKS, LinkItem } from "@/data/mockLinks";
+
+export interface UserProfile {
+  uid: string;
+  name: string;
+  displayName?: string;
+  email: string;
+  photoURL: string;
+}
 
 // 로딩 UI가 너무 순식간에 깜빡이지 않고 육안으로 명확히 보이도록 최소 지연 보장
 const minLoadingDelay = (ms = 600) =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
+// Firestore Timestamp 또는 Date를 읽기 쉬운 한국어 시각 문자열로 변환
+const formatTimestamp = (ts: unknown): string | undefined => {
+  if (!ts) return undefined;
+  if (
+    typeof ts === "object" &&
+    ts !== null &&
+    "toDate" in ts &&
+    typeof (ts as { toDate: () => Date }).toDate === "function"
+  ) {
+    return (ts as { toDate: () => Date }).toDate().toLocaleString("ko-KR");
+  }
+  if (ts instanceof Date) {
+    return ts.toLocaleString("ko-KR");
+  }
+  if (typeof ts === "string") {
+    return ts;
+  }
+  return undefined;
+};
+
 interface LinkState {
+  user: UserProfile | null;
+  authLoading: boolean;
   links: LinkItem[];
   isLoading: boolean;
   error: string | null;
+  setUserFromAuth: (
+    firebaseUser: {
+      uid: string;
+      displayName: string | null;
+      email: string | null;
+      photoURL: string | null;
+    } | null
+  ) => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
+  logout: () => Promise<void>;
   fetchLinks: () => Promise<void>;
   addLink: (
     newLink: Omit<LinkItem, "id" | "clicks" | "enabled">
@@ -35,16 +80,115 @@ interface LinkState {
 }
 
 export const useLinkStore = create<LinkState>()((set, get) => ({
-  // 기존 기본 링크 목록(MOCK_LINKS)을 그대로 유지
+  user: null,
+  authLoading: true,
   links: MOCK_LINKS,
   isLoading: false,
   error: null,
 
+  setUserFromAuth: async (firebaseUser) => {
+    if (!firebaseUser) {
+      set({ user: null, authLoading: false, links: MOCK_LINKS });
+      return;
+    }
+
+    // 이메일 앞 부분(@ 앞 아이디)을 displayName으로 추출
+    const emailPrefix = firebaseUser.email
+      ? firebaseUser.email.split("@")[0]
+      : firebaseUser.displayName || "user";
+
+    const currentUserProfile: UserProfile = {
+      uid: firebaseUser.uid,
+      name: firebaseUser.displayName || emailPrefix,
+      email: firebaseUser.email || "",
+      photoURL: firebaseUser.photoURL || "/avatar.jpg",
+    };
+
+    // 먼저 스토어에 user를 즉시 반영하여 추가/조회가 끊기지 않게 보장
+    set({
+      user: currentUserProfile,
+      authLoading: false,
+    });
+
+    // Firestore users/{user.uid} 문서에 유저 정보(displayName은 이메일 앞부분) 저장
+    try {
+      const userDocRef = doc(db, "users", firebaseUser.uid);
+      await setDoc(
+        userDocRef,
+        {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email || "",
+          displayName: emailPrefix,
+          photoURL: firebaseUser.photoURL || "",
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+      console.log(
+        `✅ [Firestore 유저 등록 완료] 경로: users/${firebaseUser.uid} (displayName: ${emailPrefix})`
+      );
+    } catch (err) {
+      console.error("❌ [Firestore 유저 문서 저장 실패]:", err);
+    }
+
+    // 해당 유저의 개인화 경로(users/{user.uid}/links)에서 링크 목록 불러오기
+    await get().fetchLinks();
+  },
+
+  loginWithGoogle: async () => {
+    console.log("🔑 [Google 로그인 클릭] 구글 소셜 로그인 팝업 요청");
+    set({ error: null });
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      console.log(
+        "✅ [Google 로그인 성공] UID:",
+        result.user.uid,
+        "이메일:",
+        result.user.email
+      );
+
+      // 로그인 직후 즉시 유저 상태 및 Firestore users/{uid} 반영
+      await get().setUserFromAuth({
+        uid: result.user.uid,
+        displayName: result.user.displayName,
+        email: result.user.email,
+        photoURL: result.user.photoURL,
+      });
+    } catch (err) {
+      console.error("❌ [Google 로그인 실패]:", err);
+      set({
+        error:
+          "구글 로그인에 실패했습니다. Firebase 콘솔 > Authentication > 로그인 방법에서 Google이 사용 설정되어 있는지 확인해주세요.",
+      });
+      throw err;
+    }
+  },
+
+  logout: async () => {
+    console.log("🚪 [로그아웃 클릭] 로그아웃 요청");
+    try {
+      await signOut(auth);
+      set({ user: null, links: MOCK_LINKS, error: null });
+      console.log("✅ [로그아웃 완료]");
+    } catch (err) {
+      console.error("❌ [로그아웃 실패]:", err);
+    }
+  },
+
   fetchLinks: async () => {
-    console.log("📥 [Firestore] 링크 목록 불러오기 시작 (경로: users/anonymous/links)");
+    const currentUser = get().user || auth.currentUser;
+    if (!currentUser) {
+      set({ links: MOCK_LINKS, isLoading: false });
+      return;
+    }
+
+    const uid = currentUser.uid;
+    console.log(
+      `📥 [Firestore] 링크 목록 불러오기 시작 (경로: users/${uid}/links)`
+    );
     set({ isLoading: true, error: null });
     try {
-      const linksCollectionRef = collection(db, "users", "anonymous", "links");
+      const linksCollectionRef = collection(db, "users", uid, "links");
       const q = query(linksCollectionRef, orderBy("createdAt", "desc"));
       const [querySnapshot] = await Promise.all([
         getDocs(q),
@@ -63,10 +207,15 @@ export const useLinkStore = create<LinkState>()((set, get) => ({
           color: data.color || "#21242e",
           enabled: data.enabled ?? true,
           clicks: data.clicks ?? 0,
+          createdAt: formatTimestamp(data.createdAt),
+          updatedAt: formatTimestamp(data.updatedAt),
         };
       });
 
-      console.log(`✅ [Firestore] 링크 목록 조회 완료 (${fetchedLinks.length}개):`, fetchedLinks);
+      console.log(
+        `✅ [Firestore] 링크 목록 조회 완료 (users/${uid}/links, ${fetchedLinks.length}개):`,
+        fetchedLinks
+      );
 
       // Firestore에서 불러온 최신순 링크들 + 기존 기본 메뉴(MOCK_LINKS) 함께 유지
       set({
@@ -83,7 +232,12 @@ export const useLinkStore = create<LinkState>()((set, get) => ({
   },
 
   addLink: async (linkData) => {
-    console.log("➕ [링크 추가 클릭] Firestore 저장 요청 데이터:", linkData);
+    const currentUser = get().user || auth.currentUser;
+    const uid = currentUser?.uid || "anonymous";
+    console.log(
+      `➕ [링크 추가 클릭] Firestore 저장 요청 (경로: users/${uid}/links):`,
+      linkData
+    );
     set({ isLoading: true, error: null });
     const payload = {
       title: linkData.title,
@@ -95,16 +249,19 @@ export const useLinkStore = create<LinkState>()((set, get) => ({
       enabled: true,
       clicks: 0,
       createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
     };
 
     try {
-      // Save new link document under: users -> anonymous -> links
-      const linksCollectionRef = collection(db, "users", "anonymous", "links");
+      // Save new link document under: users -> {user.uid} -> links
+      const linksCollectionRef = collection(db, "users", uid, "links");
       const [docRef] = await Promise.all([
         addDoc(linksCollectionRef, payload),
         minLoadingDelay(600),
       ]);
-      console.log("✅ [링크 추가 완료] 생성된 Firestore 문서 ID:", docRef.id);
+      console.log(
+        `✅ [링크 추가 완료] 생성된 Firestore 문서 ID (users/${uid}/links/${docRef.id})`
+      );
 
       // Refresh link list from Firestore sorted by createdAt desc
       await get().fetchLinks();
@@ -120,12 +277,17 @@ export const useLinkStore = create<LinkState>()((set, get) => ({
   },
 
   updateLink: async (id, updatedData) => {
-    console.log(`✏️ [링크 수정 클릭] 대상 ID: ${id}, 수정 데이터:`, updatedData);
+    const currentUser = get().user || auth.currentUser;
+    const uid = currentUser?.uid || "anonymous";
+    console.log(
+      `✏️ [링크 수정 클릭] 대상 경로: users/${uid}/links/${id}, 수정 데이터:`,
+      updatedData
+    );
     set({ isLoading: true, error: null });
     try {
-      // Firestore 문서(users/anonymous/links/{id}) 수정 수행
+      // Firestore 문서(users/{user.uid}/links/{id}) 수정 수행
       if (!id.startsWith("link-")) {
-        const linkDocRef = doc(db, "users", "anonymous", "links", id);
+        const linkDocRef = doc(db, "users", uid, "links", id);
         await Promise.all([
           updateDoc(linkDocRef, {
             title: updatedData.title,
@@ -136,16 +298,23 @@ export const useLinkStore = create<LinkState>()((set, get) => ({
           }),
           minLoadingDelay(600),
         ]);
-        console.log(`✅ [링크 수정 완료] Firestore 문서 업데이트 성공 (ID: ${id})`);
+        console.log(
+          `✅ [링크 수정 완료] Firestore 문서 업데이트 성공 (users/${uid}/links/${id})`
+        );
 
         // 링크 추가와 동일하게 fetchLinks()를 다시 호출해 목록 갱신
         await get().fetchLinks();
       } else {
         await minLoadingDelay(600);
-        console.log(`✅ [기본 링크 수정 완료] 로컬 상태 업데이트 성공 (ID: ${id})`);
+        const nowStr = new Date().toLocaleString("ko-KR");
+        console.log(
+          `✅ [기본 링크 수정 완료] 로컬 상태 업데이트 성공 (ID: ${id}, updatedAt: ${nowStr})`
+        );
         set((state) => ({
           links: state.links.map((item) =>
-            item.id === id ? { ...item, ...updatedData } : item
+            item.id === id
+              ? { ...item, ...updatedData, updatedAt: nowStr }
+              : item
           ),
           isLoading: false,
         }));
@@ -161,14 +330,18 @@ export const useLinkStore = create<LinkState>()((set, get) => ({
   },
 
   deleteLink: async (id) => {
-    console.log(`🗑️ [링크 삭제 클릭] 삭제할 대상 ID: ${id}`);
+    const currentUser = get().user || auth.currentUser;
+    const uid = currentUser?.uid || "anonymous";
+    console.log(`🗑️ [링크 삭제 클릭] 삭제할 대상 경로: users/${uid}/links/${id}`);
     set({ isLoading: true, error: null });
     try {
-      // Firestore 문서(users/anonymous/links/{id}) 삭제 수행
+      // Firestore 문서(users/{user.uid}/links/{id}) 삭제 수행
       if (!id.startsWith("link-")) {
-        const linkDocRef = doc(db, "users", "anonymous", "links", id);
+        const linkDocRef = doc(db, "users", uid, "links", id);
         await Promise.all([deleteDoc(linkDocRef), minLoadingDelay(600)]);
-        console.log(`✅ [링크 삭제 완료] Firestore 문서 삭제 성공 (ID: ${id})`);
+        console.log(
+          `✅ [링크 삭제 완료] Firestore 문서 삭제 성공 (users/${uid}/links/${id})`
+        );
 
         // 링크 추가와 동일하게 fetchLinks()를 다시 호출해 목록 갱신
         await get().fetchLinks();
