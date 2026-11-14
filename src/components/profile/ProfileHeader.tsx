@@ -21,6 +21,7 @@ import {
   Globe,
   LayoutDashboard,
   ExternalLink,
+  BarChart3,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -129,10 +130,14 @@ export function ProfileHeader({
 
   return (
     <header className="w-full space-y-2">
-      {/* Masthead Header Row: Mascot & Speech Bubble + Profile Dropdown */}
+      {/* Masthead Header Row: Mascot & Speech Bubble (클릭 시 루트 페이지 / 이동) + Profile Dropdown */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 mb-2 px-1 sm:px-2 w-full">
-        <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto min-w-0">
-          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-white bg-[#e60012] p-0.5 shadow-md shrink-0 overflow-hidden relative">
+        <Link
+          href="/"
+          title="메인 홈(/)으로 이동"
+          className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto min-w-0 group cursor-pointer"
+        >
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-white bg-[#e60012] p-0.5 shadow-md shrink-0 overflow-hidden relative group-hover:scale-105 transition-transform">
             <Image
               src={user?.photoURL || avatarUrl}
               alt={displayUserName}
@@ -143,15 +148,15 @@ export function ProfileHeader({
             />
           </div>
 
-          <div className="relative bg-white border-2 border-[#3d4f97] rounded-xl px-2.5 sm:px-3 py-1 sm:py-1.5 shadow-sm text-[11px] sm:text-xs font-bold text-[#21242e] flex items-center gap-1 flex-1 sm:flex-initial leading-tight min-w-0">
-            <span className="text-[#e60012] font-black shrink-0">MARIO:</span>
+          <div className="relative bg-white group-hover:bg-[#f0f4ff] border-2 border-[#3d4f97] group-hover:border-[#e60012] rounded-xl px-2.5 sm:px-3 py-1 sm:py-1.5 shadow-sm text-[11px] sm:text-xs font-bold text-[#21242e] flex items-center gap-1 flex-1 sm:flex-initial leading-tight min-w-0 transition-colors">
+            <span className="text-[#e60012] font-black shrink-0">MyLink:</span>
             <span className="truncate">
               {user
                 ? `"Welcome, ${displayUserName}! 🎮"`
                 : `"Welcome to MyLink Profile! 🎮"`}
             </span>
           </div>
-        </div>
+        </Link>
 
         {/* 우측 상태 배지 & 내 페이지 바로가기 버튼 & 프로필 드롭다운 메뉴 / 구글 로그인 버튼 */}
         <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end w-full sm:w-auto">
@@ -322,8 +327,20 @@ export function ProfileHeader({
 
                 <DropdownMenuSeparator />
 
-                {/* 2. 내 마이링크 요약 통계 (미니 대시보드) */}
-                <DropdownMenuLabel>📊 내 마이링크 요약 통계 (STATS)</DropdownMenuLabel>
+                {/* 2. 내 마이링크 요약 통계 (미니 대시보드) + 통계 페이지(/stats) 바로가기 */}
+                <div className="flex items-center justify-between px-1">
+                  <DropdownMenuLabel className="mb-0 px-0">
+                    📊 내 마이링크 요약 통계 (STATS)
+                  </DropdownMenuLabel>
+                  <button
+                    type="button"
+                    onClick={() => router.push("/stats")}
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-black bg-[#ecab37] hover:bg-[#e48600] text-[#21242e] border border-black rounded-[2px] cursor-pointer transition-colors"
+                  >
+                    <BarChart3 className="w-2.5 h-2.5" />
+                    <span>통계 페이지 보러가기 →</span>
+                  </button>
+                </div>
                 <div className="grid grid-cols-2 gap-1.5 px-0.5">
                   <div className="bg-[#21242e] text-white border border-black p-2 rounded-[3px] flex items-center gap-2">
                     <div className="p-1.5 rounded-[2px] bg-[#3d4f97] text-[#ecab37]">
@@ -350,8 +367,8 @@ export function ProfileHeader({
                       <p className="text-[9px] text-[#9fbee7] uppercase font-bold">
                         누적 클릭 수
                       </p>
-                      <p className="text-xs font-black text-[#ecab37]">
-                        {totalClicksCount.toLocaleString()} Clicks
+                      <p className="text-xs font-black text-[#ecab37] font-mono">
+                        {totalClicksCount.toLocaleString()}
                       </p>
                     </div>
                   </div>
@@ -367,6 +384,17 @@ export function ProfileHeader({
 
                 {/* 3. 빠른 액션 & 4. 계정 제어 */}
                 <div className="space-y-1">
+                  <DropdownMenuItem
+                    onClick={() => router.push("/stats")}
+                    className="bg-[#21242e] text-[#ecab37] hover:bg-[#3d4f97] hover:text-white border border-black justify-between"
+                  >
+                    <span className="flex items-center gap-2">
+                      <BarChart3 className="w-3.5 h-3.5 text-[#f68d1f]" />
+                      <span>통계 페이지 (/stats) 이동</span>
+                    </span>
+                    <ExternalLink className="w-3 h-3 text-[#ecab37]" />
+                  </DropdownMenuItem>
+
                   <DropdownMenuItem
                     onClick={() => router.push(personalPagePath)}
                     className="bg-[#ecab37] text-[#21242e] hover:bg-[#e48600] hover:text-[#21242e] border border-black justify-between"
@@ -437,16 +465,18 @@ export function ProfileHeader({
 
       {/* Primary Carbon Navigation Bar */}
       <div className="bg-[#21242e] bg-[radial-gradient(#ffffff15_1px,transparent_1px)] [background-size:6px_6px] border-t-2 border-l-2 border-white/40 border-b-2 border-r-2 border-black p-2 flex flex-col sm:flex-row items-center justify-between gap-2 shadow-md w-full">
-        <div className="flex items-center justify-between w-full sm:w-auto gap-2">
-          <Link href="/" className="hover:opacity-90 transition-opacity">
-            <Badge variant="pill">Nintendo® MyLink</Badge>
-          </Link>
+        <Link
+          href="/"
+          title="메인 홈(/)으로 이동"
+          className="flex items-center justify-between w-full sm:w-auto gap-2 hover:opacity-90 transition-opacity cursor-pointer"
+        >
+          <Badge variant="pill">Nintendo® MyLink</Badge>
           {user && (
-            <span className="text-[10px] font-mono text-[#9fbee7]">
+            <span className="text-[10px] font-mono text-[#9fbee7] hover:text-white transition-colors">
               {displayUserName} ({user.email})
             </span>
           )}
-        </div>
+        </Link>
 
         <div className="w-full sm:w-auto flex items-center justify-between sm:justify-start gap-2 sm:gap-4 font-black text-[11px] sm:text-xs tracking-wider text-[#e48600] overflow-x-auto whitespace-nowrap py-0.5 px-1">
           <Link href="/" className="hover:text-white transition-colors">

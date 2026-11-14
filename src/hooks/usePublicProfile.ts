@@ -113,7 +113,28 @@ export function usePublicProfileQuery(rawDisplayName: string) {
         };
       });
 
-      const mergedLinks = [...fetchedLinks, ...MOCK_LINKS];
+      let savedMockClicks: Record<string, number> = {};
+      if (typeof window !== "undefined") {
+        try {
+          const raw = window.localStorage.getItem(
+            `mylink_mock_clicks_${userId}`
+          );
+          if (raw) savedMockClicks = JSON.parse(raw);
+        } catch {
+          // ignore
+        }
+      }
+
+      const fetchedIds = new Set(fetchedLinks.map((item) => item.id));
+      const hydratedMockLinks = MOCK_LINKS.filter(
+        (item) => !fetchedIds.has(item.id)
+      ).map((item) =>
+        savedMockClicks[item.id] !== undefined
+          ? { ...item, clicks: savedMockClicks[item.id] }
+          : item
+      );
+
+      const mergedLinks = [...fetchedLinks, ...hydratedMockLinks];
 
       console.log(
         `✅ [Public Profile] 유저(${userId}) 및 링크(${mergedLinks.length}개) 조회 완료`

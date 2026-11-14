@@ -20,6 +20,7 @@ import {
   Loader2,
   UserCheck,
   ArrowLeft,
+  MousePointerClick,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ProfileHeader } from "@/components/profile/ProfileHeader";
 import { useUser } from "@/hooks/useUser";
 import { usePublicProfileQuery } from "@/hooks/usePublicProfile";
+import { useIncrementLinkClickMutation } from "@/hooks/useLinks";
 
 export default function PublicUserProfilePage() {
   const params = useParams<{ displayName: string }>();
@@ -38,6 +40,7 @@ export default function PublicUserProfilePage() {
 
   // displayName으로 대상 유저 및 users/{userId}/links 조회
   const { data, isLoading, isError } = usePublicProfileQuery(rawDisplayName);
+  const incrementLinkClickMutation = useIncrementLinkClickMutation();
 
   const [copiedEmail, setCopiedEmail] = React.useState(false);
   const [copiedPageUrl, setCopiedPageUrl] = React.useState(false);
@@ -87,7 +90,12 @@ export default function PublicUserProfilePage() {
     setTimeout(() => setCopiedPageUrl(false), 2000);
   };
 
-  const handleOpenLinkNewTab = (url: string) => {
+  const handleOpenLinkNewTab = (id: string, url: string) => {
+    incrementLinkClickMutation.mutate({
+      id,
+      targetUid: data?.userId || undefined,
+      publicDisplayName: decodedDisplayName,
+    });
     if (url && url !== "#") {
       window.open(url, "_blank", "noopener,noreferrer");
     }
@@ -95,6 +103,7 @@ export default function PublicUserProfilePage() {
 
   const profile = data?.profile;
   const links = data?.links || [];
+  const totalClicks = links.reduce((sum, item) => sum + (item.clicks || 0), 0);
 
   return (
     <div className="min-h-screen bg-[#7a8aba] text-[#21242e] font-sans p-2 sm:p-4 md:p-6 flex flex-col items-center justify-center selection:bg-[#f68d1f] selection:text-white w-full overflow-x-hidden">
@@ -237,7 +246,7 @@ export default function PublicUserProfilePage() {
                 </div>
               </div>
 
-              {/* 2. 하단: 링크 목록 (클릭 시 새 탭으로 열기) */}
+              {/* 2. 하단: 링크 목록 (클릭 시 클릭 수 +1 저장 및 새 탭으로 열기) */}
               <Card className="w-full">
                 <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -245,6 +254,10 @@ export default function PublicUserProfilePage() {
                       ≡ {profile.displayName?.toUpperCase()}&apos;S LINK LIST
                     </CardTitle>
                     <Badge variant="signal">{links.length} ITEMS</Badge>
+                    <Badge variant="amber" className="gap-1 font-mono">
+                      <MousePointerClick className="w-3 h-3" />
+                      <span>{totalClicks.toLocaleString()}</span>
+                    </Badge>
                   </div>
 
                   <Link href="/">
@@ -269,7 +282,7 @@ export default function PublicUserProfilePage() {
                     links.map((link) => (
                       <div
                         key={link.id}
-                        onClick={() => handleOpenLinkNewTab(link.url)}
+                        onClick={() => handleOpenLinkNewTab(link.id, link.url)}
                         className="bg-[#dedede] hover:bg-white border-t border-l border-white border-b border-r border-[#3d4f97] p-2.5 sm:p-3 flex items-center justify-between gap-2.5 text-[#21242e] group cursor-pointer transition-all shadow-xs w-full min-w-0"
                       >
                         <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -290,7 +303,15 @@ export default function PublicUserProfilePage() {
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span
+                            className="inline-flex items-center gap-1 text-xs font-mono font-bold bg-[#21242e] text-[#ecab37] px-2.5 py-1 rounded-[2px] border border-black shadow-2xs"
+                            title="클릭 조회수"
+                          >
+                            <MousePointerClick className="w-3.5 h-3.5 text-[#f68d1f]" />
+                            <span>{Number(link.clicks ?? 0).toLocaleString()}</span>
+                          </span>
+
                           <span className="text-[10px] font-mono font-bold bg-[#9fbee7] text-[#21242e] px-2 py-0.5 rounded-xs border border-[#3d4f97] hidden sm:inline-block">
                             NEW TAB ↗
                           </span>
@@ -300,7 +321,7 @@ export default function PublicUserProfilePage() {
                             size="sm"
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleOpenLinkNewTab(link.url);
+                              handleOpenLinkNewTab(link.id, link.url);
                             }}
                             className="px-2 py-1 cursor-pointer"
                             title="새 탭으로 링크 열기"

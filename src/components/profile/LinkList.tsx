@@ -1,12 +1,12 @@
 "use client";
 
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw, MousePointerClick } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { LinkCardItem } from "./LinkCardItem";
 import { AddLinkDialog } from "./AddLinkDialog";
 import { useLinkStore } from "@/store/useLinkStore";
-import { useLinksQuery } from "@/hooks/useLinks";
+import { useLinksQuery, useIncrementLinkClickMutation } from "@/hooks/useLinks";
 
 interface LinkListProps {
   onLinkClick?: (id: string, url: string) => void;
@@ -20,17 +20,24 @@ export function LinkList({ onLinkClick }: LinkListProps = {}) {
     error: queryError,
   } = useLinksQuery();
 
+  const incrementLinkClickMutation = useIncrementLinkClickMutation();
+
   const storeLoading = useLinkStore((state) => state.isLoading);
   const storeError = useLinkStore((state) => state.error);
-  const incrementClicks = useLinkStore((state) => state.incrementClicks);
 
   const isBusy = isLoading || isFetching || storeLoading;
   const errorMsg =
     storeError ||
     (queryError ? "Firestore에서 링크 목록을 불러오는 중 오류가 발생했습니다." : null);
 
+  const totalClicks = links.reduce((sum, item) => sum + (item.clicks || 0), 0);
+
   const handleCardClick = (id: string, url: string) => {
-    incrementClicks(id);
+    const clickedLink = links.find((item) => item.id === id);
+    incrementLinkClickMutation.mutate({
+      id,
+      targetUid: clickedLink?.ownerUid,
+    });
     if (onLinkClick) {
       onLinkClick(id, url);
     } else if (url && url !== "#") {
@@ -44,6 +51,10 @@ export function LinkList({ onLinkClick }: LinkListProps = {}) {
         <div className="flex items-center gap-2 flex-wrap">
           <CardTitle>≡ FEATURED LINK LIST</CardTitle>
           <Badge variant="signal">{links.length} ITEMS</Badge>
+          <Badge variant="amber" className="gap-1 font-mono">
+            <MousePointerClick className="w-3 h-3" />
+            <span>{totalClicks.toLocaleString()}</span>
+          </Badge>
           {isBusy && (
             <Badge variant="amber" className="gap-1 animate-pulse">
               <RefreshCw className="w-3 h-3 animate-spin" />

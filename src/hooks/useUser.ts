@@ -34,6 +34,10 @@ export function useUser() {
         ? firebaseUser.email.split("@")[0]
         : firebaseUser.displayName || "user";
 
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("mylink_owner_uid", firebaseUser.uid);
+      }
+
       // 우선 Auth 기본 정보로 세팅 후 useQuery가 Firestore 문서를 단발성(getDoc)으로 조회
       const currentAuthProfile: UserProfile = {
         uid: firebaseUser.uid,

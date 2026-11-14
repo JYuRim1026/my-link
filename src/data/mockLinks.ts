@@ -8,6 +8,7 @@ export interface LinkItem {
   color?: string;
   enabled: boolean;
   clicks: number;
+  ownerUid?: string;
   createdAt?: string;
   updatedAt?: string;
 }

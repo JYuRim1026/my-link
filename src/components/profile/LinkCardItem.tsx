@@ -17,6 +17,7 @@ import {
   Check,
   X,
   Loader2,
+  MousePointerClick,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -360,13 +361,17 @@ export function LinkCardItem({ link, onLinkClick }: LinkCardItemProps) {
           </div>
         </div>
 
-        {/* 우측: 클릭 수 + 항상 표시되는 [수정] [삭제] [이동] 버튼 */}
+        {/* 우측: 항상 표시되는 조회/클릭 수(아이콘+숫자만, 0 포함) + [수정] [삭제] [이동] 버튼 */}
         <div
-          className="flex items-center justify-end gap-1.5 shrink-0"
+          className="flex items-center justify-end gap-1.5 shrink-0 flex-wrap"
           onClick={(e) => e.stopPropagation()}
         >
-          <span className="text-[10px] font-mono font-bold bg-[#9fbee7] text-[#21242e] px-2 py-0.5 rounded-xs border border-[#3d4f97] hidden md:inline-block">
-            {link.clicks} Clicks
+          <span
+            className="inline-flex items-center gap-1 text-xs font-mono font-bold bg-[#21242e] text-[#ecab37] px-2.5 py-1 rounded-[2px] border border-black shadow-2xs"
+            title="클릭 조회수"
+          >
+            <MousePointerClick className="w-3.5 h-3.5 text-[#f68d1f]" />
+            <span>{Number(link.clicks ?? 0).toLocaleString()}</span>
           </span>
 
           {/* 항상 표시되는 수정 버튼 */}
