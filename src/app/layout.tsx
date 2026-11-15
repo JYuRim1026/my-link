@@ -14,9 +14,34 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  (process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : "http://localhost:3000");
+
 export const metadata: Metadata = {
-  title: "마이링크 | MyLink",
-  description: "안정적인 백엔드 시스템과 서버 아키텍처를 구축하는 개발자의 마이링크(MyLink)",
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: "마이링크 | MyLink",
+    template: "%s | 마이링크 (MyLink)",
+  },
+  description:
+    "안정적인 백엔드 시스템과 서버 아키텍처를 구축하는 개발자의 마이링크(MyLink)",
+  openGraph: {
+    title: "마이링크 | MyLink",
+    description:
+      "안정적인 백엔드 시스템과 서버 아키텍처를 구축하는 개발자의 마이링크(MyLink)",
+    siteName: "마이링크 (MyLink)",
+    locale: "ko_KR",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "마이링크 | MyLink",
+    description:
+      "안정적인 백엔드 시스템과 서버 아키텍처를 구축하는 개발자의 마이링크(MyLink)",
+  },
   other: {
     google: "notranslate",
   },
