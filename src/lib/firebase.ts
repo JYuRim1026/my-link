@@ -1,58 +1,74 @@
-import { initializeApp, getApps, getApp } from "firebase/app";
+import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getAnalytics, isSupported } from "firebase/analytics";
 import { getFirestore } from "firebase/firestore";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, type Auth } from "firebase/auth";
 import { getStorage } from "firebase/storage";
 
+const DEFAULT_FIREBASE_CONFIG = {
+  apiKey: "AIzaSyARqdVGq4BYqJPQdAAqCw1JnaCAlQtGo5c",
+  authDomain: "mylink-project-7b4c8.firebaseapp.com",
+  projectId: "mylink-project-7b4c8",
+  storageBucket: "mylink-project-7b4c8.firebasestorage.app",
+  messagingSenderId: "690173923357",
+  appId: "1:690173923357:web:25cd41bb29447f7040b6f4",
+  measurementId: "G-V38G3YEK26",
+};
+
 const cleanEnv = (val: string | undefined, fallback: string): string => {
-  const cleaned = (val || "").trim().replace(/^["']|["']$/g, "");
+  if (!val) return fallback;
+  const cleaned = val.trim().replace(/^["']|["']$/g, "").trim();
   return cleaned || fallback;
 };
 
 const rawApiKey = cleanEnv(
   process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  "AIzaSyARqdVGq4BYqJPQdAAqCw1JnaCAlQtGo5c"
+  DEFAULT_FIREBASE_CONFIG.apiKey
 );
 
-// Valid Firebase Web API keys always start with "AIza"
-const safeApiKey = rawApiKey.startsWith("AIza")
-  ? rawApiKey
-  : "AIzaSyARqdVGq4BYqJPQdAAqCw1JnaCAlQtGo5c";
+// Strictly validate Google Firebase Web API key format (no colons, spaces, or invalid chars)
+const isValidFirebaseApiKey = /^AIza[0-9A-Za-z_-]{30,50}$/.test(rawApiKey);
 
 const firebaseConfig = {
-  apiKey: safeApiKey,
+  apiKey: isValidFirebaseApiKey ? rawApiKey : DEFAULT_FIREBASE_CONFIG.apiKey,
   authDomain: cleanEnv(
     process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-    "mylink-project-7b4c8.firebaseapp.com"
+    DEFAULT_FIREBASE_CONFIG.authDomain
   ),
   projectId: cleanEnv(
     process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-    "mylink-project-7b4c8"
+    DEFAULT_FIREBASE_CONFIG.projectId
   ),
   storageBucket: cleanEnv(
     process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-    "mylink-project-7b4c8.firebasestorage.app"
+    DEFAULT_FIREBASE_CONFIG.storageBucket
   ),
   messagingSenderId: cleanEnv(
     process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-    "690173923357"
+    DEFAULT_FIREBASE_CONFIG.messagingSenderId
   ),
   appId: cleanEnv(
     process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-    "1:690173923357:web:25cd41bb29447f7040b6f4"
+    DEFAULT_FIREBASE_CONFIG.appId
   ),
   measurementId: cleanEnv(
     process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
-    "G-V38G3YEK26"
+    DEFAULT_FIREBASE_CONFIG.measurementId
   ),
 };
 
-// Initialize Firebase (Singleton pattern for Next.js SSR & HMR)
-const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+// Initialize Firebase safely (with fallback recovery if default app had invalid options)
+let app: FirebaseApp;
+let auth: Auth;
 
-// Initialize core Firebase services
+try {
+  app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+  auth = getAuth(app);
+} catch {
+  app = initializeApp(DEFAULT_FIREBASE_CONFIG, "mylink-safe-app");
+  auth = getAuth(app);
+}
+
 const db = getFirestore(app);
-const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({
   prompt: "select_account",
