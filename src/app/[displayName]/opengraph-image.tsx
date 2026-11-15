@@ -30,7 +30,7 @@ async function loadKoreanFont(): Promise<ArrayBuffer | null> {
 export default async function OpenGraphImage({
   params,
 }: {
-  params: Promise<{ displayName: string }> | { displayName: string };
+  params: Promise<{ displayName: string }>;
 }) {
   const resolvedParams = await Promise.resolve(params);
   let decodedName = "MyLink";
