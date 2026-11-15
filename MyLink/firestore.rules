@@ -1,0 +1,95 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =========================================================
+    // 1. 공통 헬퍼 함수 (인증 및 본인 확인, 데이터 검증)
+    // =========================================================
+
+    // 로그인 여부 확인
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // 요청한 유저가 해당 경로(userId)의 본인인지 확인 (또는 비로그인 anonymous 공용 경로)
+    function isOwner(userId) {
+      return (isSignedIn() && request.auth.uid == userId) || userId == 'anonymous';
+    }
+
+    // 프로필 편집 시 필드 타입 및 길이 검증 (프론트엔드 우회 방지)
+    function isValidProfile(data) {
+      return (
+        // displayName 필수: 문자열, 2~20자
+        (!('displayName' in data) || (data.displayName is string && data.displayName.size() >= 2 && data.displayName.size() <= 20)) &&
+        // role 선택/수정: 문자열, 최대 40자
+        (!('role' in data) || (data.role is string && data.role.size() <= 40)) &&
+        // bio 선택/수정: 문자열, 최대 120자
+        (!('bio' in data) || (data.bio is string && data.bio.size() <= 120)) &&
+        // uid 위변조 방지: 문서 내 uid가 있다면 반드시 본인 uid와 일치해야 함
+        (!('uid' in data) || data.uid == request.auth.uid)
+      );
+    }
+
+    // 링크 추가/수정 시 필드 타입 및 길이 검증
+    function isValidLink(data) {
+      return (
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 50 &&
+        data.url is string && data.url.matches('^https?://.*') &&
+        (!('description' in data) || (data.description is string && data.description.size() <= 100)) &&
+        (!('badge' in data) || (data.badge is string && data.badge.size() >= 1 && data.badge.size() <= 15))
+      );
+    }
+
+    // 클릭 카운트(clicks)는 로그인 여부와 관계없이 누구나 수정 가능!
+    // (오직 clicks 필드만 수정하는 요청일 때 누구나 허용하되, 서버 주인 본인이 로그인한 상태에서는 제외)
+    function isClickCountUpdate(userId) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['clicks'])
+             && request.resource.data.clicks is number
+             && (request.auth == null || request.auth.uid != userId);
+    }
+
+    // =========================================================
+    // 2. 유저 루트 문서 및 하위 컬렉션 보안 규칙
+    // =========================================================
+    match /users/{userId} {
+      // [읽기] 누구나 가능 (/{displayName} 동적 라우팅 유저 검색 & 닉네임 중복 확인용)
+      allow read: if true;
+
+      // [쓰기] 로그인 + 본인 ID 일치 + 프로필 필드 유효성 통과 시에만 허용
+      allow create, update: if isOwner(userId) && isValidProfile(request.resource.data);
+      allow delete: if isOwner(userId);
+
+      // -------------------------------------------------------
+      // 2-1. 프로필 하위 경로: users/{userId}/profile/{docId}
+      // -------------------------------------------------------
+      match /profile/{docId=**} {
+        // 읽기: 누구나 가능
+        allow read: if true;
+        // 쓰기: 로그인 + 본인 ID 일치 + 프로필 데이터 검증 통과 시에만 허용
+        allow create, update: if isOwner(userId) && isValidProfile(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+
+      // -------------------------------------------------------
+      // 2-2. 링크 하위 경로: users/{userId}/links/{linkId}
+      // -------------------------------------------------------
+      match /links/{linkId} {
+        // 읽기: 누구나 가능 (비로그인 방문자도 링크 목록 및 조회수 확인 가능)
+        allow read: if true;
+
+        // 생성: 로그인 + 본인 ID 일치 + 링크 스키마 검증 통과 시 허용
+        allow create: if isOwner(userId) && isValidLink(request.resource.data);
+
+        // 수정:
+        // 1) 링크 정보(제목, URL 등) 수정은 본인(isOwner)만 가능
+        // 2) 클릭 카운트(clicks) 수정은 누구나(비로그인 방문자 및 다른 유저) 가능!
+        allow update: if (isOwner(userId) && isValidLink(request.resource.data))
+                      || isClickCountUpdate(userId);
+
+        // 삭제: 로그인 + 본인 ID 일치 시에만 허용
+        allow delete: if isOwner(userId);
+      }
+    }
+  }
+}
